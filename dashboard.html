@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    html, body { height: 100%; }
+    html, body { height: 100%; margin: 0; padding: 0; }
     body { display: flex; flex-direction: column; font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
     .content { flex: 1; }
     .navbar { background-color: #1d3557; }
@@ -27,7 +27,7 @@
 <body>
 <nav class="navbar navbar-expand-lg">
   <div class="container">
-    <a class="navbar-brand" href="index.html">RetainX</a>
+    <a class="navbar-brand" href="#">RetainX</a>
   </div>
 </nav>
 
@@ -36,12 +36,6 @@
     <div class="col-md-4"><div class="card p-3"><h5>Total Customers</h5><h2 id="totalCustomers">0</h2></div></div>
     <div class="col-md-4"><div class="card p-3"><h5>Total Spend</h5><h2 id="totalSpend">0</h2></div></div>
     <div class="col-md-4"><div class="card p-3"><h5>Avg Days Since Order</h5><h2 id="avgDays">0</h2></div></div>
-  </div>
-
-  <div class="row my-5">
-    <div class="col-md-6 offset-md-3">
-      <canvas id="churnChart"></canvas>
-    </div>
   </div>
 
   <div class="row upload-section">
@@ -93,18 +87,17 @@ let chartInstance;
 
 function parseDateFlexible(dateString) {
   if (!dateString) return null;
-  const formats = [/^(\d{2})-(\d{2})-(\d{4})$/, /^(\d{4})-(\d{2})-(\d{2})$/, /^(\d{2})\/(\d{2})\/(\d{4})$/];
-  for (let format of formats) {
-    const match = dateString.match(format);
-    if (match) {
-      if (format.source.startsWith("^(\\d{2})")) {
-        return new Date(`${match[3]}-${match[2]}-${match[1]}`);
-      } else {
-        return new Date(`${match[1]}-${match[2]}-${match[3]}`);
-      }
+  const parts = dateString.includes('-') ? dateString.split('-') : dateString.split('/');
+  if (parts.length !== 3) return null;
+
+  if (parts[2].length === 4) { // assuming DD-MM-YYYY or MM-DD-YYYY
+    if (parseInt(parts[1]) > 12) { // month can't be > 12
+      return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    } else {
+      return new Date(`${parts[2]}-${parts[0]}-${parts[1]}`);
     }
   }
-  return new Date(dateString);
+  return null;
 }
 
 document.getElementById('csvFileInput').addEventListener('change', function(e) {
@@ -116,11 +109,18 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
     header: true,
     skipEmptyLines: true,
     complete: function(results) {
+      const today = new Date();
       customersData = results.data.map(cust => {
-        const today = new Date();
         const lastOrder = parseDateFlexible(cust['Last Order']);
         let daysSinceOrder = (lastOrder && !isNaN(lastOrder)) ? Math.floor((today - lastOrder) / (1000 * 3600 * 24)) : 0;
         if (daysSinceOrder < 0) daysSinceOrder = 0;
+
+        let rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
+        let fScore = cust['Frequency'] >= 10 ? 5 : cust['Frequency'] >= 7 ? 4 : cust['Frequency'] >= 4 ? 3 : cust['Frequency'] >= 2 ? 2 : 1;
+        let mScore = cust['Total Spend'] >= 10000 ? 5 : cust['Total Spend'] >= 5000 ? 4 : cust['Total Spend'] >= 2000 ? 3 : cust['Total Spend'] >= 1000 ? 2 : 1;
+
+        const totalRFM = rScore + fScore + mScore;
+        let churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
 
         return {
           customerId: cust['Customer ID'] || '',
@@ -128,7 +128,7 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
           frequency: parseInt(cust['Frequency']) || 0,
           totalSpend: parseFloat(cust['Total Spend']) || 0,
           daysSinceOrder,
-          churnRisk: 'Medium'
+          churnRisk
         };
       });
       updateDashboard();
