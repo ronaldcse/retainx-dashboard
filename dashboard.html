@@ -29,7 +29,7 @@
 <div class="container my-5">
   <div class="row text-center">
     <div class="col-md-4"><div class="card p-3"><h5>Total Customers</h5><h2 id="totalCustomers">0</h2></div></div>
-    <div class="col-md-4"><div class="card p-3"><h5>Total Spend (₹)</h5><h2 id="totalSpend">0</h2></div></div>
+    <div class="col-md-4"><div class="card p-3"><h5>Total Spend</h5><h2 id="totalSpend">0</h2></div></div>
     <div class="col-md-4"><div class="card p-3"><h5>Avg Days Since Order</h5><h2 id="avgDays">0</h2></div></div>
   </div>
 
@@ -111,10 +111,10 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
       customersData = results.data.map(cust => {
         const today = new Date();
         const lastOrder = parseDateFlexible(cust['Last Order Date']);
-        let daysSinceOrder = isNaN(lastOrder.getTime()) ? '-' : Math.floor((today - lastOrder) / (1000 * 3600 * 24));
-        if (daysSinceOrder !== '-' && daysSinceOrder < 0) daysSinceOrder = 0;
+        let daysSinceOrder = isNaN(lastOrder.getTime()) ? 0 : Math.floor((today - lastOrder) / (1000 * 3600 * 24));
+        if (daysSinceOrder < 0) daysSinceOrder = 0;
 
-        let rScore = daysSinceOrder !== '-' && daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
+        let rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
         let fScore = cust['Order Frequency'] >= 10 ? 5 : cust['Order Frequency'] >= 7 ? 4 : cust['Order Frequency'] >= 4 ? 3 : cust['Order Frequency'] >= 2 ? 2 : 1;
         let mScore = cust['Total Spend'] >= 10000 ? 5 : cust['Total Spend'] >= 5000 ? 4 : cust['Total Spend'] >= 2000 ? 3 : cust['Total Spend'] >= 1000 ? 2 : 1;
 
@@ -142,10 +142,10 @@ document.getElementById('riskFilter').addEventListener('change', renderTable);
 
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
-  const totalSpend = customersData.reduce((sum, cust) => sum + Number(cust.totalSpend || 0), 0);
-  document.getElementById('totalSpend').innerText = `₹${totalSpend}`;
+  const totalSpend = customersData.reduce((sum, cust) => sum + (parseFloat(cust.totalSpend) || 0), 0);
+  document.getElementById('totalSpend').innerText = totalSpend;
   const avgDays = Math.round(customersData.reduce((sum, cust) => sum + (cust.daysSinceOrder || 0), 0) / customersData.length);
-  document.getElementById('avgDays').innerText = avgDays;
+  document.getElementById('avgDays').innerText = isNaN(avgDays) ? 0 : avgDays;
 }
 
 function renderTable() {
@@ -165,7 +165,7 @@ function renderTable() {
       <td>${cust.customerId}</td>
       <td>${cust.lastOrderDate}</td>
       <td>${cust.frequency}</td>
-      <td>₹${cust.totalSpend}</td>
+      <td>${cust.totalSpend}</td>
       <td>${cust.daysSinceOrder}</td>
       <td>${cust.churnRisk}</td>
     </tr>`;
