@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RetainX Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
     body {
@@ -14,14 +16,28 @@
     .navbar {
       background-color: #1d3557;
     }
-    .navbar-brand, .nav-link, .nav-link:visited {
+    .navbar-brand {
       color: #fff !important;
     }
+    .card {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      border: none;
+    }
     .upload-section {
-      margin-top: 20px;
+      margin-top: 30px;
     }
     .table-responsive {
-      margin-top: 20px;
+      margin-top: 30px;
+    }
+    .table-hover tbody tr:hover {
+      background-color: #e3f2fd;
+    }
+    .footer {
+      background-color: #1d3557;
+      color: #ffffff;
+      text-align: center;
+      padding: 15px;
+      margin-top: 40px;
     }
   </style>
 </head>
@@ -32,7 +48,34 @@
     </div>
   </nav>
 
-  <div class="container my-4">
+  <div class="container my-5">
+    <div class="row text-center">
+      <div class="col-md-4">
+        <div class="card p-3">
+          <h5>Total Customers</h5>
+          <h2 id="totalCustomers">0</h2>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3">
+          <h5>Total Spend (₹)</h5>
+          <h2 id="totalSpend">0</h2>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3">
+          <h5>Avg Days Since Order</h5>
+          <h2 id="avgDays">0</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="row my-5">
+      <div class="col-md-6 offset-md-3">
+        <canvas id="churnChart"></canvas>
+      </div>
+    </div>
+
     <div class="row upload-section">
       <div class="col-md-4">
         <label>Upload Customer CSV:</label>
@@ -54,8 +97,8 @@
     </div>
 
     <div class="table-responsive">
-      <table class="table table-striped mt-4">
-        <thead>
+      <table class="table table-striped table-hover mt-4">
+        <thead class="table-dark">
           <tr>
             <th>Customer ID</th>
             <th>Last Order</th>
@@ -71,6 +114,11 @@
     </div>
   </div>
 
+  <footer class="footer">
+    © 2025 Rolin Technologies – Powered by RetainX
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let customersData = [];
 
@@ -91,7 +139,7 @@
 
             let rScore = daysSinceOrder !== '-' && daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
             let fScore = cust['Order Frequency'] >= 10 ? 5 : cust['Order Frequency'] >= 7 ? 4 : cust['Order Frequency'] >= 4 ? 3 : cust['Order Frequency'] >= 2 ? 2 : 1;
-            let mScore = cust['Total Spend (₹)'] >= 10000 ? 5 : cust['Total Spend (₹)'] >= 5000 ? 4 : cust['Total Spend (₹)'] >= 2000 ? 3 : cust['Total Spend (₹)'] >= 1000 ? 2 : 1;
+            let mScore = cust['Total Spend'] >= 10000 ? 5 : cust['Total Spend'] >= 5000 ? 4 : cust['Total Spend'] >= 2000 ? 3 : cust['Total Spend'] >= 1000 ? 2 : 1;
 
             const totalRFM = rScore + fScore + mScore;
             const churnRisk = totalRFM >= 11 ? "Low" : totalRFM >= 7 ? "Medium" : "High";
@@ -100,18 +148,28 @@
               customerId: cust['Customer ID'],
               lastOrderDate: cust['Last Order Date'],
               frequency: cust['Order Frequency'],
-              totalSpend: cust['Total Spend (₹)'],
+              totalSpend: cust['Total Spend'],
               daysSinceOrder,
               churnRisk
             };
           });
+          updateDashboard();
           renderTable();
+          renderChart();
         }
       });
     });
 
     document.getElementById('searchInput').addEventListener('input', renderTable);
     document.getElementById('riskFilter').addEventListener('change', renderTable);
+
+    function updateDashboard() {
+      document.getElementById('totalCustomers').innerText = customersData.length;
+      const totalSpend = customersData.reduce((sum, cust) => sum + Number(cust.totalSpend || 0), 0);
+      document.getElementById('totalSpend').innerText = `₹${totalSpend}`;
+      const avgDays = Math.round(customersData.reduce((sum, cust) => sum + (cust.daysSinceOrder || 0), 0) / customersData.length);
+      document.getElementById('avgDays').innerText = avgDays;
+    }
 
     function renderTable() {
       const searchValue = document.getElementById('searchInput').value.toLowerCase();
@@ -137,7 +195,30 @@
         tbody.innerHTML += row;
       });
     }
+
+    function renderChart() {
+      const ctx = document.getElementById('churnChart').getContext('2d');
+      const riskCounts = { 'High': 0, 'Medium': 0, 'Low': 0 };
+      customersData.forEach(cust => riskCounts[cust.churnRisk]++);
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['High', 'Medium', 'Low'],
+          datasets: [{
+            data: [riskCounts['High'], riskCounts['Medium'], riskCounts['Low']],
+            backgroundColor: ['#dc3545', '#ffc107', '#28a745']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
