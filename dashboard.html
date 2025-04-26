@@ -69,8 +69,6 @@
           <th>Total Spend</th>
           <th>Days Since Order</th>
           <th>Churn Risk</th>
-          <th>Loyalty Points</th>
-          <th>Loyalty Tier</th>
         </tr>
       </thead>
       <tbody id="customerTableBody"></tbody>
@@ -86,8 +84,47 @@
 let customersData = [];
 let chartInstance;
 
-// CSV Upload & Parsing
-... (shortened to focus on loyalty points)
+document.getElementById('csvFileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('fileName').innerText = `Selected File: ${file.name}`;
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      const today = new Date();
+      customersData = results.data.map(cust => {
+        const dateStr = cust['Last Order Date'] || '';
+        let lastOrderDate = null;
+
+        if (dateStr.includes('-') || dateStr.includes('/')) {
+          const parts = dateStr.split(/[-\\/]/);
+          if (parts.length === 3) {
+            const p1 = parseInt(parts[0]);
+            const p2 = parseInt(parts[1]);
+            const p3 = parseInt(parts[2]);
+            if (p1 > 12) {
+              lastOrderDate = new Date(`${p3}-${p2}-${p1}`);
+            } else if (p2 > 12) {
+              lastOrderDate = new Date(`${p3}-${p1}-${p2}`);
+            } else {
+              lastOrderDate = new Date(`${p3}-${p1}-${p2}`);
+            }
+          }
+        }
+
+        const daysSinceOrder = lastOrderDate && !isNaN(lastOrderDate) ? Math.floor((today - lastOrderDate) / (1000 * 3600 * 24)) : 0;
+
+        const frequency = parseInt(cust['Order Frequency']) || 0;
+        const totalSpend = parseFloat(cust['Total Spend']) || 0;
+
+        const rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
+        const fScore = frequency >= 10 ? 5 : frequency >= 7 ? 4 : frequency >= 4 ? 3 : frequency >= 2 ? 2 : 1;
+        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
+
+        const totalRFM = rScore + fScore + mScore;
+        const churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
 
         const loyaltyPoints = Math.floor(totalSpend / 100);
         let loyaltyTier = 'Bronze';
@@ -104,12 +141,38 @@ let chartInstance;
           loyaltyPoints: loyaltyPoints,
           loyaltyTier: loyaltyTier
         };
+      });
+      updateDashboard();
+      renderTable();
+    }
+  });
+});
 
-// Table Rendering
+document.getElementById('searchInput').addEventListener('input', renderTable);
+document.getElementById('riskFilter').addEventListener('change', renderTable);
+
+function updateDashboard() {
+  document.getElementById('totalCustomers').innerText = customersData.length;
+  const totalSpend = customersData.reduce((sum, cust) => sum + (cust.totalSpend || 0), 0);
+  document.getElementById('totalSpend').innerText = totalSpend;
+  const validDays = customersData.filter(c => typeof c.daysSinceOrder === 'number').map(c => c.daysSinceOrder);
+  const avgDays = validDays.length ? Math.round(validDays.reduce((a, b) => a + b, 0) / validDays.length) : 0;
+  document.getElementById('avgDays').innerText = avgDays;
+}
+
 function renderTable() {
+  const searchValue = document.getElementById('searchInput').value.toLowerCase();
+  const riskFilterValue = document.getElementById('riskFilter').value;
   const tbody = document.getElementById('customerTableBody');
   tbody.innerHTML = '';
-  customersData.forEach(cust => {
+
+  const filtered = customersData.filter(cust => {
+    const matchesSearch = cust.customerId.toLowerCase().includes(searchValue);
+    const matchesRisk = riskFilterValue === "All" || cust.churnRisk === riskFilterValue;
+    return matchesSearch && matchesRisk;
+  });
+
+  filtered.forEach(cust => {
     const row = `<tr>
       <td>${cust.customerId}</td>
       <td>${cust.lastOrderDate}</td>
@@ -124,5 +187,6 @@ function renderTable() {
   });
 }
 </script>
+
 </body>
 </html>
