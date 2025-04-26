@@ -64,8 +64,8 @@
       <thead class="table-dark">
         <tr>
           <th>Customer ID</th>
-          <th>Last Order</th>
-          <th>Frequency</th>
+          <th>Last Order Date</th>
+          <th>Order Frequency</th>
           <th>Total Spend</th>
           <th>Days Since Order</th>
           <th>Churn Risk</th>
@@ -85,21 +85,6 @@
 let customersData = [];
 let chartInstance;
 
-function parseDateFlexible(dateString) {
-  if (!dateString) return null;
-  const parts = dateString.includes('-') ? dateString.split('-') : dateString.split('/');
-  if (parts.length !== 3) return null;
-
-  if (parts[2].length === 4) { // assuming DD-MM-YYYY or MM-DD-YYYY
-    if (parseInt(parts[1]) > 12) { // month can't be > 12
-      return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    } else {
-      return new Date(`${parts[2]}-${parts[0]}-${parts[1]}`);
-    }
-  }
-  return null;
-}
-
 document.getElementById('csvFileInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -111,24 +96,30 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
       customersData = results.data.map(cust => {
-        const lastOrder = parseDateFlexible(cust['Last Order']);
-        let daysSinceOrder = (lastOrder && !isNaN(lastOrder)) ? Math.floor((today - lastOrder) / (1000 * 3600 * 24)) : 0;
-        if (daysSinceOrder < 0) daysSinceOrder = 0;
+        const lastOrderParts = (cust['Last Order Date'] || '').split(/[-\/]/);
+        let lastOrderDate = null;
+        if (lastOrderParts.length === 3) {
+          lastOrderDate = new Date(`${lastOrderParts[2]}-${lastOrderParts[1]}-${lastOrderParts[0]}`);
+        }
+        const daysSinceOrder = lastOrderDate ? Math.floor((today - lastOrderDate) / (1000 * 3600 * 24)) : 0;
 
-        let rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
-        let fScore = cust['Frequency'] >= 10 ? 5 : cust['Frequency'] >= 7 ? 4 : cust['Frequency'] >= 4 ? 3 : cust['Frequency'] >= 2 ? 2 : 1;
-        let mScore = cust['Total Spend'] >= 10000 ? 5 : cust['Total Spend'] >= 5000 ? 4 : cust['Total Spend'] >= 2000 ? 3 : cust['Total Spend'] >= 1000 ? 2 : 1;
+        const frequency = parseInt(cust['Order Frequency']) || 0;
+        const totalSpend = parseFloat(cust['Total Spend']) || 0;
+
+        const rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
+        const fScore = frequency >= 10 ? 5 : frequency >= 7 ? 4 : frequency >= 4 ? 3 : frequency >= 2 ? 2 : 1;
+        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
 
         const totalRFM = rScore + fScore + mScore;
-        let churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
+        const churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
 
         return {
           customerId: cust['Customer ID'] || '',
-          lastOrderDate: cust['Last Order'] || '',
-          frequency: parseInt(cust['Frequency']) || 0,
-          totalSpend: parseFloat(cust['Total Spend']) || 0,
-          daysSinceOrder,
-          churnRisk
+          lastOrderDate: cust['Last Order Date'] || '',
+          orderFrequency: frequency,
+          totalSpend: totalSpend,
+          daysSinceOrder: daysSinceOrder,
+          churnRisk: churnRisk
         };
       });
       updateDashboard();
@@ -166,7 +157,7 @@ function renderTable() {
     const row = `<tr>
       <td>${cust.customerId}</td>
       <td>${cust.lastOrderDate}</td>
-      <td>${cust.frequency}</td>
+      <td>${cust.orderFrequency}</td>
       <td>${cust.totalSpend}</td>
       <td>${cust.daysSinceOrder}</td>
       <td>${cust.churnRisk}</td>
