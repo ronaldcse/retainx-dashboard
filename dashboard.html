@@ -20,7 +20,8 @@
     .table-hover tbody tr:hover { background-color: #e3f2fd; }
     .footer { background-color: #1d3557; color: #ffffff; text-align: center; padding: 15px; }
     .file-name { margin-top: 8px; font-size: 0.9rem; color: #555; }
-    input[type=file]::file-selector-button { content: "Choose CSV File"; }
+    input[type=file]::-webkit-file-upload-button { visibility: hidden; }
+    input[type=file]::before { content: 'Choose CSV File'; display: inline-block; background: #1d3557; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
   </style>
 </head>
 <body>
