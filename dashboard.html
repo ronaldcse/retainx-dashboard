@@ -9,14 +9,17 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
+    html, body { height: 100%; }
+    body { display: flex; flex-direction: column; font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
+    .content { flex: 1; }
     .navbar { background-color: #1d3557; }
     .navbar-brand { color: #fff !important; }
     .card { box-shadow: 0 4px 8px rgba(0,0,0,0.05); border: none; }
     .upload-section { margin-top: 30px; }
     .table-responsive { margin-top: 30px; }
     .table-hover tbody tr:hover { background-color: #e3f2fd; }
-    .footer { background-color: #1d3557; color: #ffffff; text-align: center; padding: 15px; margin-top: 40px; }
+    .footer { background-color: #1d3557; color: #ffffff; text-align: center; padding: 15px; }
+    .file-name { margin-top: 8px; font-size: 0.9rem; color: #555; }
   </style>
 </head>
 <body>
@@ -26,7 +29,7 @@
   </div>
 </nav>
 
-<div class="container my-5">
+<div class="container my-5 content">
   <div class="row text-center">
     <div class="col-md-4"><div class="card p-3"><h5>Total Customers</h5><h2 id="totalCustomers">0</h2></div></div>
     <div class="col-md-4"><div class="card p-3"><h5>Total Spend</h5><h2 id="totalSpend">0</h2></div></div>
@@ -41,8 +44,9 @@
 
   <div class="row upload-section">
     <div class="col-md-4">
-      <label>Upload Customer CSV:</label>
-      <input type="file" id="csvFileInput" class="form-control" accept=".csv">
+      <a href="/sample_customer_retention.csv" download class="text-primary">Sample CSV File (Download)</a>
+      <input type="file" id="csvFileInput" class="form-control mt-2" accept=".csv">
+      <div id="fileName" class="file-name"></div>
     </div>
     <div class="col-md-4">
       <label>Search Customer ID:</label>
@@ -76,7 +80,7 @@
   </div>
 </div>
 
-<footer class="footer">
+<footer class="footer mt-auto">
   © 2025 Rolin Technologies – Powered by RetainX
 </footer>
 
@@ -86,7 +90,8 @@ let customersData = [];
 let chartInstance;
 
 function parseDateFlexible(dateString) {
-  const formats = [/^(\d{2})-(\d{2})-(\d{4})$/, /^(\d{4})-(\d{2})-(\d{2})$/];
+  if (!dateString) return null;
+  const formats = [/^(\d{2})-(\d{2})-(\d{4})$/, /^(\d{4})-(\d{2})-(\d{2})$/, /^(\d{2})\/(\d{2})\/(\d{4})$/];
   for (let format of formats) {
     const match = dateString.match(format);
     if (match) {
@@ -103,6 +108,7 @@ function parseDateFlexible(dateString) {
 document.getElementById('csvFileInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
+  document.getElementById('fileName').innerText = `Selected File: ${file.name}`;
 
   Papa.parse(file, {
     header: true,
@@ -110,22 +116,22 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
     complete: function(results) {
       customersData = results.data.map(cust => {
         const today = new Date();
-        const lastOrder = parseDateFlexible(cust['Last Order Date']);
-        let daysSinceOrder = isNaN(lastOrder.getTime()) ? 0 : Math.floor((today - lastOrder) / (1000 * 3600 * 24));
+        const lastOrder = parseDateFlexible(cust['Last Order']);
+        let daysSinceOrder = (lastOrder && !isNaN(lastOrder)) ? Math.floor((today - lastOrder) / (1000 * 3600 * 24)) : 0;
         if (daysSinceOrder < 0) daysSinceOrder = 0;
 
         let rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
-        let fScore = cust['Order Frequency'] >= 10 ? 5 : cust['Order Frequency'] >= 7 ? 4 : cust['Order Frequency'] >= 4 ? 3 : cust['Order Frequency'] >= 2 ? 2 : 1;
-        let mScore = cust['Total Spend'] >= 10000 ? 5 : cust['Total Spend'] >= 5000 ? 4 : cust['Total Spend'] >= 2000 ? 3 : cust['Total Spend'] >= 1000 ? 2 : 1;
+        let fScore = cust['Frequency'] >= 10 ? 5 : cust['Frequency'] >= 7 ? 4 : cust['Frequency'] >= 4 ? 3 : cust['Frequency'] >= 2 ? 2 : 1;
+        let mScore = parseFloat(cust['Total Spend']) >= 10000 ? 5 : parseFloat(cust['Total Spend']) >= 5000 ? 4 : parseFloat(cust['Total Spend']) >= 2000 ? 3 : parseFloat(cust['Total Spend']) >= 1000 ? 2 : 1;
 
         const totalRFM = rScore + fScore + mScore;
         const churnRisk = totalRFM >= 11 ? "Low" : totalRFM >= 7 ? "Medium" : "High";
 
         return {
           customerId: cust['Customer ID'],
-          lastOrderDate: cust['Last Order Date'],
-          frequency: cust['Order Frequency'],
-          totalSpend: cust['Total Spend'],
+          lastOrderDate: cust['Last Order'],
+          frequency: cust['Frequency'],
+          totalSpend: parseFloat(cust['Total Spend']) || 0,
           daysSinceOrder,
           churnRisk
         };
@@ -142,10 +148,11 @@ document.getElementById('riskFilter').addEventListener('change', renderTable);
 
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
-  const totalSpend = customersData.reduce((sum, cust) => sum + (parseFloat(cust.totalSpend) || 0), 0);
+  const totalSpend = customersData.reduce((sum, cust) => sum + (cust.totalSpend || 0), 0);
   document.getElementById('totalSpend').innerText = totalSpend;
-  const avgDays = Math.round(customersData.reduce((sum, cust) => sum + (cust.daysSinceOrder || 0), 0) / customersData.length);
-  document.getElementById('avgDays').innerText = isNaN(avgDays) ? 0 : avgDays;
+  const validDays = customersData.filter(c => typeof c.daysSinceOrder === 'number').map(c => c.daysSinceOrder);
+  const avgDays = validDays.length ? Math.round(validDays.reduce((a, b) => a + b, 0) / validDays.length) : 0;
+  document.getElementById('avgDays').innerText = avgDays;
 }
 
 function renderTable() {
@@ -190,9 +197,7 @@ function renderChart() {
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          position: 'bottom'
-        }
+        legend: { position: 'bottom' }
       }
     }
   });
