@@ -83,10 +83,13 @@
 </footer>
 
 <script>
-let customersData = [];
-let chartInstance;
 
-document.getElementById('csvFileInput').addEventListener('change', function(e) {
+// Define Global Variables
+let customersData = [];
+
+// Upload and Parse CSV
+const csvInput = document.getElementById('csvFileInput');
+csvInput.addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
   document.getElementById('fileName').innerText = `Selected File: ${file.name}`;
@@ -96,12 +99,14 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
     skipEmptyLines: true,
     complete: function(results) {
       const today = new Date();
+
+      // Calculate Days Since Order, Churn Risk, Loyalty Points, and Tier
       customersData = results.data.map(cust => {
         const dateStr = cust['Last Order Date'] || '';
         let lastOrderDate = null;
 
         if (dateStr.includes('-') || dateStr.includes('/')) {
-          const parts = dateStr.split(/[-\\/]/);
+          const parts = dateStr.split(/[-\/]/);
           if (parts.length === 3) {
             const p1 = parseInt(parts[0]);
             const p2 = parseInt(parts[1]);
@@ -150,9 +155,11 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
   });
 });
 
+// Search and Filter Logic
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
 
+// Update Dashboard Top Cards
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
   const totalSpend = customersData.reduce((sum, cust) => sum + (cust.totalSpend || 0), 0);
@@ -162,12 +169,14 @@ function updateDashboard() {
   document.getElementById('avgDays').innerText = avgDays;
 }
 
+// Render Customer Table
 function renderTable() {
   const searchValue = document.getElementById('searchInput').value.toLowerCase();
   const riskFilterValue = document.getElementById('riskFilter').value;
   const tbody = document.getElementById('customerTableBody');
   tbody.innerHTML = '';
 
+  // Apply Search and Risk Filter
   const filtered = customersData.filter(cust => {
     const matchesSearch = cust.customerId.toLowerCase().includes(searchValue);
     const matchesRisk = riskFilterValue === "All" || cust.churnRisk === riskFilterValue;
@@ -188,6 +197,7 @@ function renderTable() {
     tbody.innerHTML += row;
   });
 }
+
 </script>
 
 </body>
