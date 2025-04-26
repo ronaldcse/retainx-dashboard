@@ -20,6 +20,7 @@
     .table-hover tbody tr:hover { background-color: #e3f2fd; }
     .footer { background-color: #1d3557; color: #ffffff; text-align: center; padding: 15px; }
     .file-name { margin-top: 8px; font-size: 0.9rem; color: #555; }
+    input[type=file]::file-selector-button { content: "Choose CSV File"; }
   </style>
 </head>
 <body>
@@ -44,7 +45,7 @@
 
   <div class="row upload-section">
     <div class="col-md-4">
-      <a href="/sample_customer_retention.csv" download class="text-primary">Sample CSV File (Download)</a>
+      <a href="sample_customer_retention.csv" download class="text-primary">Sample CSV File (Download)</a>
       <input type="file" id="csvFileInput" class="form-control mt-2" accept=".csv">
       <div id="fileName" class="file-name"></div>
     </div>
@@ -120,20 +121,13 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
         let daysSinceOrder = (lastOrder && !isNaN(lastOrder)) ? Math.floor((today - lastOrder) / (1000 * 3600 * 24)) : 0;
         if (daysSinceOrder < 0) daysSinceOrder = 0;
 
-        let rScore = daysSinceOrder <= 30 ? 5 : daysSinceOrder <= 60 ? 4 : daysSinceOrder <= 90 ? 3 : daysSinceOrder <= 120 ? 2 : 1;
-        let fScore = cust['Frequency'] >= 10 ? 5 : cust['Frequency'] >= 7 ? 4 : cust['Frequency'] >= 4 ? 3 : cust['Frequency'] >= 2 ? 2 : 1;
-        let mScore = parseFloat(cust['Total Spend']) >= 10000 ? 5 : parseFloat(cust['Total Spend']) >= 5000 ? 4 : parseFloat(cust['Total Spend']) >= 2000 ? 3 : parseFloat(cust['Total Spend']) >= 1000 ? 2 : 1;
-
-        const totalRFM = rScore + fScore + mScore;
-        const churnRisk = totalRFM >= 11 ? "Low" : totalRFM >= 7 ? "Medium" : "High";
-
         return {
-          customerId: cust['Customer ID'],
-          lastOrderDate: cust['Last Order'],
-          frequency: cust['Frequency'],
+          customerId: cust['Customer ID'] || '',
+          lastOrderDate: cust['Last Order'] || '',
+          frequency: parseInt(cust['Frequency']) || 0,
           totalSpend: parseFloat(cust['Total Spend']) || 0,
           daysSinceOrder,
-          churnRisk
+          churnRisk: 'Medium'
         };
       });
       updateDashboard();
@@ -196,9 +190,7 @@ function renderChart() {
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { position: 'bottom' }
-      }
+      plugins: { legend: { position: 'bottom' } }
     }
   });
 }
