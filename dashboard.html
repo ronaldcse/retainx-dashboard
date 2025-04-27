@@ -72,6 +72,7 @@
           <th>Loyalty Points</th>
           <th>Loyalty Tier</th>
           <th>Reminder Message</th>
+          <th>Recommended Product</th>
         </tr>
       </thead>
       <tbody id="customerTableBody"></tbody>
@@ -101,7 +102,7 @@ csvInput.addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
 
-      // Calculate Days Since Order, Churn Risk, Loyalty Points, and Tier
+      // Calculate Days Since Order, Churn Risk, Loyalty Points, Tier, and Recommended Product
       customersData = results.data.map(cust => {
         const dateStr = cust['Last Order Date'] || '';
         let lastOrderDate = null;
@@ -145,6 +146,12 @@ csvInput.addEventListener('change', function(e) {
         else if (daysSinceOrder <= 60) reminderMessage = 'Mild Reminder: Encourage reorder!';
         else reminderMessage = 'Urgent Reminder: Please reorder!';
 
+        // Recommend Product based on Loyalty Tier
+        let recommendedProduct = '';
+        if (loyaltyTier === 'Gold') recommendedProduct = 'Premium Combo Pack';
+        else if (loyaltyTier === 'Silver') recommendedProduct = 'Popular Essentials Pack';
+        else recommendedProduct = 'Starter Essentials Pack';
+
         return {
           customerId: cust['Customer ID'] || '',
           lastOrderDate: cust['Last Order Date'] || '',
@@ -154,7 +161,8 @@ csvInput.addEventListener('change', function(e) {
           churnRisk: churnRisk,
           loyaltyPoints: loyaltyPoints,
           loyaltyTier: loyaltyTier,
-          reminderMessage: reminderMessage
+          reminderMessage: reminderMessage,
+          recommendedProduct: recommendedProduct
         };
       });
       updateDashboard();
@@ -202,6 +210,7 @@ function renderTable() {
       <td>${cust.loyaltyPoints}</td>
       <td>${cust.loyaltyTier}</td>
       <td>${cust.reminderMessage}</td>
+      <td>${cust.recommendedProduct}</td>
     </tr>`;
     tbody.innerHTML += row;
   });
