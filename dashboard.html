@@ -95,6 +95,8 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 </footer>
 
 
+<!-- Full Working Code Updated -->
+
 <script>
 let customersData = [];
 
@@ -155,6 +157,7 @@ csvInput.addEventListener('change', function(e) {
       });
       updateDashboard();
       renderTable();
+      updateCharts();
       setTimeout(() => {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -167,7 +170,6 @@ csvInput.addEventListener('change', function(e) {
 
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
-
 document.getElementById('exportButton').addEventListener('click', function() {
   const searchValue = document.getElementById('searchInput').value.toLowerCase();
   const riskFilterValue = document.getElementById('riskFilter').value;
@@ -240,7 +242,44 @@ function renderTable() {
     tbody.innerHTML += row;
   });
 }
+
+let churnPie, loyaltyPie;
+function updateCharts() {
+  const churnCounts = { Low: 0, Medium: 0, High: 0 };
+  const loyaltyCounts = { Bronze: 0, Silver: 0, Gold: 0 };
+
+  customersData.forEach(cust => {
+    churnCounts[cust.churnRisk]++;
+    loyaltyCounts[cust.loyaltyTier]++;
+  });
+
+  if (churnPie) churnPie.destroy();
+  if (loyaltyPie) loyaltyPie.destroy();
+
+  churnPie = new Chart(document.getElementById('churnPieChart'), {
+    type: 'pie',
+    data: {
+      labels: ['Low', 'Medium', 'High'],
+      datasets: [{
+        data: [churnCounts.Low, churnCounts.Medium, churnCounts.High],
+        backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+      }]
+    }
+  });
+
+  loyaltyPie = new Chart(document.getElementById('loyaltyPieChart'), {
+    type: 'pie',
+    data: {
+      labels: ['Bronze', 'Silver', 'Gold'],
+      datasets: [{
+        data: [loyaltyCounts.Bronze, loyaltyCounts.Silver, loyaltyCounts.Gold],
+        backgroundColor: ['#cd7f32', '#c0c0c0', '#ffd700']
+      }]
+    }
+  });
+}
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
