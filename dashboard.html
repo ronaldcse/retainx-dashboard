@@ -1,4 +1,4 @@
-<!-- Full working corrected RetainX dashboard with all new updates -->
+<!-- Fresh Start: Fully Clean RetainX Dashboard Matching Your CSV Format -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -15,7 +15,7 @@
 html, body { height: 100%; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
 .navbar { background-color: #1d3557; }
 .navbar-brand { color: #fff !important; }
-.content { display: flex; height: calc(100vh - 70px); }
+.content { display: flex; min-height: calc(100vh - 70px); }
 .left-panel { width: 80%; padding: 20px; overflow-y: auto; }
 .right-panel { width: 20%; background: #ffffff; padding: 20px; border-left: 1px solid #ddd; overflow-y: auto; }
 .table-responsive { margin-top: 20px; }
@@ -30,16 +30,16 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 <body>
 
 <nav class="navbar navbar-expand-lg">
-<div class="container-fluid">
-  <a class="navbar-brand" href="#">RetainX</a>
-</div>
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">RetainX</a>
+  </div>
 </nav>
 
 <div class="content">
 <div class="left-panel">
   <div class="row g-2 align-items-end">
     <div class="col-md-3">
-      <a href="sample_customer_retention_full.csv" download class="text-primary">Sample CSV File (Download)</a>
+      <a href="sample_customer_retention.csv" download class="text-primary">Sample CSV File (Download)</a>
       <input type="file" id="csvFileInput" class="form-control mt-1" accept=".csv">
       <div id="fileName" class="file-name"></div>
     </div>
@@ -74,8 +74,7 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 
   <div class="table-responsive">
     <table class="table table-striped table-hover mt-4">
-      <thead class="table-dark" id="tableHead">
-      </thead>
+      <thead class="table-dark" id="tableHead"></thead>
       <tbody id="customerTableBody"></tbody>
     </table>
   </div>
@@ -103,7 +102,7 @@ const csvInput = document.getElementById('csvFileInput');
 csvInput.addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
-  document.getElementById('fileName').innerText = `Selected: ${file.name}`;
+  document.getElementById('fileName').innerText = `${file.name}`;
 
   Papa.parse(file, {
     header: true,
@@ -111,40 +110,34 @@ csvInput.addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
       customersData = results.data.map(cust => {
-        const dates = (cust['Purchase Dates'] || '').split(',').map(d => new Date(d.trim())).filter(d => !isNaN(d));
-        const lastPurchaseDate = dates.length ? dates.sort((a, b) => b - a)[0] : null;
-        const daysSinceLastPurchase = lastPurchaseDate ? Math.floor((today - lastPurchaseDate) / (1000 * 3600 * 24)) : 0;
-        const orderFrequency = dates.length;
-        const totalSpend = parseFloat(cust['Total Spend']) || 0;
+        const lastPurchase = cust['Last Purchase Date'] ? new Date(cust['Last Purchase Date']) : null;
+        const daysSince = lastPurchase ? Math.floor((today - lastPurchase) / (1000 * 3600 * 24)) : '-';
+        const freq = parseInt(cust['Order Frequency']) || 0;
+        const spend = parseFloat(cust['Total Spend']) || 0;
 
-        const loyaltyPoints = Math.floor(totalSpend / 100);
+        const rScore = daysSince <= 30 ? 5 : daysSince <= 60 ? 4 : daysSince <= 90 ? 3 : daysSince <= 120 ? 2 : 1;
+        const fScore = freq >= 10 ? 5 : freq >= 7 ? 4 : freq >= 4 ? 3 : freq >= 2 ? 2 : 1;
+        const mScore = spend >= 10000 ? 5 : spend >= 5000 ? 4 : spend >= 2000 ? 3 : spend >= 1000 ? 2 : 1;
+
+        const churnRisk = (rScore + fScore + mScore) >= 11 ? 'Low' : (rScore + fScore + mScore) >= 7 ? 'Medium' : 'High';
+        const loyaltyPoints = Math.floor(spend/100);
         let loyaltyTier = 'Bronze';
         if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
         else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
 
-        const productList = (cust['Purchased Products'] || '').split(',').map(p => p.trim());
-        const recommendedProduct = productList.length ? productList[productList.length - 1] : '-';
-
-        const reminderMessage = daysSinceLastPurchase <= 30 ? 'No Reminder' : daysSinceLastPurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
-
-        const rScore = daysSinceLastPurchase <= 30 ? 5 : daysSinceLastPurchase <= 60 ? 4 : daysSinceLastPurchase <= 90 ? 3 : daysSinceLastPurchase <= 120 ? 2 : 1;
-        const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
-        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
-        const totalRFM = rScore + fScore + mScore;
-        const churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
+        const reminderMessage = daysSince <= 30 ? 'No Reminder' : daysSince <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
 
         return {
-          customerId: cust['Customer ID'] || '',
-          lastPurchaseDate: lastPurchaseDate ? lastPurchaseDate.toISOString().split('T')[0] : '',
-          orderFrequency,
-          totalSpend,
-          daysSinceLastPurchase,
+          customerId: cust['Customer ID'],
+          lastPurchaseDate: cust['Last Purchase Date'],
+          orderFrequency: freq,
+          totalSpend: spend,
+          daysSincePurchase: daysSince,
+          churnRisk,
           loyaltyPoints,
           loyaltyTier,
           reminderMessage,
-          churnRisk,
-          recommendedProduct,
-          fullProducts: cust['Purchased Products'] || ''
+          recommendedProduct: '-' // Placeholder
         }
       });
       renderTable();
@@ -156,63 +149,47 @@ csvInput.addEventListener('change', function(e) {
 
 // Render Table
 function renderTable() {
-  const riskValue = document.getElementById('riskFilter').value;
-  const search = document.getElementById('searchInput').value.toLowerCase();
-  const useCase = document.getElementById('useCaseFilter').value;
-
   const tbody = document.getElementById('customerTableBody');
   const thead = document.getElementById('tableHead');
+  const risk = document.getElementById('riskFilter').value;
+  const usecase = document.getElementById('useCaseFilter').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
 
-  let displayColumns = [];
-  if (useCase === 'All') displayColumns = ['Customer ID','Last Purchase Date','Order Frequency','Total Spend','Days Since Last Purchase','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
-  else if (useCase === 'Churn') displayColumns = ['Customer ID','Last Purchase Date','Days Since Last Purchase','Churn Risk'];
-  else if (useCase === 'Recommended') displayColumns = ['Customer ID','Recommended Product'];
-  else if (useCase === 'Loyalty') displayColumns = ['Customer ID','Loyalty Points','Loyalty Tier'];
-  else if (useCase === 'Reminder') displayColumns = ['Customer ID','Reminder Message'];
-  else if (useCase === 'Automation') displayColumns = ['Customer ID','Reminder Message','Recommended Product'];
+  let columns = [];
+  if (usecase === 'All') columns = ['Customer ID','Last Purchase Date','Order Frequency','Total Spend','Days Since Purchase','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
+  else if (usecase === 'Churn') columns = ['Customer ID','Last Purchase Date','Days Since Purchase','Churn Risk'];
+  else if (usecase === 'Recommended') columns = ['Customer ID','Recommended Product'];
+  else if (usecase === 'Loyalty') columns = ['Customer ID','Loyalty Points','Loyalty Tier'];
+  else if (usecase === 'Reminder') columns = ['Customer ID','Reminder Message'];
+  else if (usecase === 'Automation') columns = ['Customer ID','Reminder Message','Recommended Product'];
 
-  thead.innerHTML = `<tr>${displayColumns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-
+  thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
   tbody.innerHTML = '';
+
   customersData.forEach(c => {
-    if (riskValue !== 'All' && c.churnRisk !== riskValue) return;
+    if (risk !== 'All' && c.churnRisk !== risk) return;
     if (search && !c.customerId.toLowerCase().includes(search)) return;
     const row = document.createElement('tr');
-    displayColumns.forEach(col => {
-      let val = c[col.replaceAll(' ', '').replace('Date', 'Date').toLowerCase()] || '-';
-      if (col === 'Recommended Product') {
-        row.innerHTML += `<td data-bs-toggle="tooltip" title="${c.fullProducts}">${val}</td>`;
-      } else {
-        row.innerHTML += `<td>${val}</td>`;
-      }
+    columns.forEach(col => {
+      let value = c[col.replaceAll(' ', '').replace('Date', 'Date').replace('Purchase', 'Purchase').toLowerCase()] || '-';
+      row.innerHTML += `<td>${value}</td>`;
     });
     tbody.appendChild(row);
   });
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
 }
 
-// Update Dashboard
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
 }
 
-// Update Pie Chart
 let churnPie;
 function updatePieChart() {
   const churnCounts = { Low: 0, Medium: 0, High: 0 };
   customersData.forEach(c => churnCounts[c.churnRisk]++);
-
   if (churnPie) churnPie.destroy();
   churnPie = new Chart(document.getElementById('churnPieChart'), {
     type: 'pie',
-    data: {
-      labels: ['Low', 'Medium', 'High'],
-      datasets: [{
-        data: [churnCounts.Low, churnCounts.Medium, churnCounts.High],
-        backgroundColor: ['#28a745', '#ffc107', '#dc3545']
-      }]
-    }
+    data: { labels: ['Low', 'Medium', 'High'], datasets: [{ data: [churnCounts.Low, churnCounts.Medium, churnCounts.High], backgroundColor: ['#28a745','#ffc107','#dc3545'] }] }
   });
 }
 
@@ -220,15 +197,14 @@ document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
 document.getElementById('useCaseFilter').addEventListener('change', renderTable);
 document.getElementById('exportButton').addEventListener('click', function() {
-  const filteredRows = [...document.querySelectorAll('#customerTableBody tr')];
-  const csvContent = filteredRows.map(row => [...row.children].map(cell => cell.innerText).join(",")).join("\n");
+  const rows = [...document.querySelectorAll('#customerTableBody tr')];
+  const csvContent = rows.map(r => [...r.children].map(c => c.innerText).join(",")).join("\n");
   const headRow = [...document.querySelectorAll('#tableHead th')].map(th => th.innerText).join(",");
   const csv = `${headRow}\n${csvContent}`;
-
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  link.setAttribute('href', URL.createObjectURL(blob));
-  link.setAttribute('download', 'retainx_filtered_data.csv');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'retainx_filtered.csv';
   link.click();
 });
 </script>
