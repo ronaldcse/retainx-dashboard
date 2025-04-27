@@ -22,11 +22,7 @@
     .file-name { margin-top: 8px; font-size: 0.9rem; color: #555; }
     input[type=file]::-webkit-file-upload-button { visibility: hidden; }
     input[type=file]::before { content: 'Choose CSV File'; display: inline-block; background: #1d3557; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
-
-    /* Correct Tooltip CSS */
-    [data-bs-toggle="tooltip"] {
-      cursor: pointer;
-    }
+    [data-bs-toggle="tooltip"] { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -82,6 +78,10 @@
       </thead>
       <tbody id="customerTableBody"></tbody>
     </table>
+  </div>
+
+  <div class="text-center mt-3">
+    <button class="btn btn-success" id="exportButton">Export Analyzed Data</button>
   </div>
 </div>
 
@@ -161,6 +161,32 @@ csvInput.addEventListener('change', function(e) {
 
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
+
+document.getElementById('exportButton').addEventListener('click', function() {
+  const exportData = customersData.map(c => ({
+    'Customer ID': c.customerId,
+    'Last Purchase Date': c.lastPurchaseDate,
+    'Order Frequency': c.orderFrequency,
+    'Total Spend': c.totalSpend,
+    'Days Since Last Purchase': c.daysSinceLastPurchase,
+    'Churn Risk': c.churnRisk,
+    'Loyalty Points': c.loyaltyPoints,
+    'Loyalty Tier': c.loyaltyTier,
+    'Reminder Message': c.reminderMessage,
+    'Recommended Product': c.recommendedProduct
+  }));
+
+  const csv = Papa.unparse(exportData);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'retainx_analyzed_data.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
 
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
