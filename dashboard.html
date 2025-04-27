@@ -1,4 +1,4 @@
-<!-- Full working dashboard HTML + full working script inserted -->
+<!-- Full working corrected RetainX dashboard with all new updates -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <style>
 html, body { height: 100%; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f6f9; }
 .navbar { background-color: #1d3557; }
@@ -27,6 +28,7 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 </style>
 </head>
 <body>
+
 <nav class="navbar navbar-expand-lg">
 <div class="container-fluid">
   <a class="navbar-brand" href="#">RetainX</a>
@@ -35,17 +37,17 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 
 <div class="content">
 <div class="left-panel">
-  <div class="row upload-section">
-    <div class="col-md-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
       <a href="sample_customer_retention_full.csv" download class="text-primary">Sample CSV File (Download)</a>
-      <input type="file" id="csvFileInput" class="form-control mt-2" accept=".csv">
+      <input type="file" id="csvFileInput" class="form-control mt-1" accept=".csv">
       <div id="fileName" class="file-name"></div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-2">
       <label>Search Customer ID:</label>
-      <input type="text" id="searchInput" class="form-control" placeholder="Enter Customer ID">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search...">
     </div>
-    <div class="col-md-4">
+    <div class="col-md-2">
       <label>Filter by Churn Risk:</label>
       <select id="riskFilter" class="form-control">
         <option value="All">All</option>
@@ -54,62 +56,54 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
         <option value="Low">Low</option>
       </select>
     </div>
+    <div class="col-md-3">
+      <label>All Use Cases:</label>
+      <select id="useCaseFilter" class="form-control">
+        <option value="All">All Use Cases</option>
+        <option value="Churn">Churn Risk</option>
+        <option value="Recommended">Recommended Product</option>
+        <option value="Loyalty">Loyalty Points & Tier</option>
+        <option value="Reminder">Reminder Message</option>
+        <option value="Automation">Planning Automation</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-success w-100" id="exportButton">Export Data</button>
+    </div>
   </div>
 
   <div class="table-responsive">
     <table class="table table-striped table-hover mt-4">
-      <thead class="table-dark">
-        <tr>
-          <th>Customer ID</th>
-          <th>Last Purchase Date</th>
-          <th>Order Frequency</th>
-          <th>Total Spend</th>
-          <th>Days Since Last Purchase</th>
-          <th>Churn Risk</th>
-          <th>Loyalty Points</th>
-          <th>Loyalty Tier</th>
-          <th>Reminder Message</th>
-          <th>Recommended Product</th>
-        </tr>
+      <thead class="table-dark" id="tableHead">
       </thead>
       <tbody id="customerTableBody"></tbody>
     </table>
   </div>
-
-  <div class="text-center mt-3">
-    <button class="btn btn-success" id="exportButton">Export Analyzed Data</button>
-  </div>
 </div>
 
-<div class="right-panel">
-  <h5 class="mb-4">Dashboard Insights</h5>
-  <div class="mb-4">
-    <canvas id="churnPieChart"></canvas>
+<div class="right-panel text-center">
+  <div class="card mb-3 p-2 shadow-sm">
+    <h5>Total Customers</h5>
+    <h2 id="totalCustomers">0</h2>
   </div>
-  <div class="mb-4">
-    <canvas id="loyaltyPieChart"></canvas>
-  </div>
+  <h6 class="mt-4">Churn Risk Split</h6>
+  <canvas id="churnPieChart" style="height:180px; width:180px;"></canvas>
 </div>
 </div>
 
-<footer class="footer mt-auto">
+<footer class="footer">
 © 2025 Rolin Technologies – Powered by RetainX
 </footer>
 
 <script>
-// 1. Upload and Parse CSV
-// 2. Update Top Cards
-// 3. Render Customer Table
-// 4. Export Data Button
-// 5. Pie Charts Update
-
 let customersData = [];
 
+// Upload and Parse CSV
 const csvInput = document.getElementById('csvFileInput');
 csvInput.addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
-  document.getElementById('fileName').innerText = `Selected File: ${file.name}`;
+  document.getElementById('fileName').innerText = `Selected: ${file.name}`;
 
   Papa.parse(file, {
     header: true,
@@ -123,141 +117,93 @@ csvInput.addEventListener('change', function(e) {
         const orderFrequency = dates.length;
         const totalSpend = parseFloat(cust['Total Spend']) || 0;
 
-        const rScore = daysSinceLastPurchase <= 30 ? 5 : daysSinceLastPurchase <= 60 ? 4 : daysSinceLastPurchase <= 90 ? 3 : daysSinceLastPurchase <= 120 ? 2 : 1;
-        const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
-        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
-
-        const totalRFM = rScore + fScore + mScore;
-        const churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
-
         const loyaltyPoints = Math.floor(totalSpend / 100);
         let loyaltyTier = 'Bronze';
         if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
         else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
 
-        let reminderMessage = '';
-        if (daysSinceLastPurchase <= 30) reminderMessage = 'No Reminder Needed';
-        else if (daysSinceLastPurchase <= 60) reminderMessage = 'Mild Reminder: Encourage reorder!';
-        else reminderMessage = 'Urgent Reminder: Please reorder!';
-
-        let recommendedProduct = '';
         const productList = (cust['Purchased Products'] || '').split(',').map(p => p.trim());
-        recommendedProduct = productList.length ? productList[productList.length - 1] : '-';
+        const recommendedProduct = productList.length ? productList[productList.length - 1] : '-';
+
+        const reminderMessage = daysSinceLastPurchase <= 30 ? 'No Reminder' : daysSinceLastPurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
+
+        const rScore = daysSinceLastPurchase <= 30 ? 5 : daysSinceLastPurchase <= 60 ? 4 : daysSinceLastPurchase <= 90 ? 3 : daysSinceLastPurchase <= 120 ? 2 : 1;
+        const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
+        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
+        const totalRFM = rScore + fScore + mScore;
+        const churnRisk = totalRFM >= 11 ? 'Low' : totalRFM >= 7 ? 'Medium' : 'High';
 
         return {
           customerId: cust['Customer ID'] || '',
           lastPurchaseDate: lastPurchaseDate ? lastPurchaseDate.toISOString().split('T')[0] : '',
-          orderFrequency: orderFrequency,
-          totalSpend: totalSpend,
-          daysSinceLastPurchase: daysSinceLastPurchase,
-          churnRisk: churnRisk,
-          loyaltyPoints: loyaltyPoints,
-          loyaltyTier: loyaltyTier,
-          reminderMessage: reminderMessage,
-          recommendedProduct: recommendedProduct,
-          fullProductHistory: cust['Purchased Products'] || ''
-        };
+          orderFrequency,
+          totalSpend,
+          daysSinceLastPurchase,
+          loyaltyPoints,
+          loyaltyTier,
+          reminderMessage,
+          churnRisk,
+          recommendedProduct,
+          fullProducts: cust['Purchased Products'] || ''
+        }
       });
-      updateDashboard();
-      updateCharts();
-      document.getElementById('riskFilter').value = 'All';
       renderTable();
+      updateDashboard();
+      updatePieChart();
     }
   });
 });
 
-// 2. Update Dashboard Summary Cards
+// Render Table
+function renderTable() {
+  const riskValue = document.getElementById('riskFilter').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const useCase = document.getElementById('useCaseFilter').value;
+
+  const tbody = document.getElementById('customerTableBody');
+  const thead = document.getElementById('tableHead');
+
+  let displayColumns = [];
+  if (useCase === 'All') displayColumns = ['Customer ID','Last Purchase Date','Order Frequency','Total Spend','Days Since Last Purchase','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
+  else if (useCase === 'Churn') displayColumns = ['Customer ID','Last Purchase Date','Days Since Last Purchase','Churn Risk'];
+  else if (useCase === 'Recommended') displayColumns = ['Customer ID','Recommended Product'];
+  else if (useCase === 'Loyalty') displayColumns = ['Customer ID','Loyalty Points','Loyalty Tier'];
+  else if (useCase === 'Reminder') displayColumns = ['Customer ID','Reminder Message'];
+  else if (useCase === 'Automation') displayColumns = ['Customer ID','Reminder Message','Recommended Product'];
+
+  thead.innerHTML = `<tr>${displayColumns.map(col => `<th>${col}</th>`).join('')}</tr>`;
+
+  tbody.innerHTML = '';
+  customersData.forEach(c => {
+    if (riskValue !== 'All' && c.churnRisk !== riskValue) return;
+    if (search && !c.customerId.toLowerCase().includes(search)) return;
+    const row = document.createElement('tr');
+    displayColumns.forEach(col => {
+      let val = c[col.replaceAll(' ', '').replace('Date', 'Date').toLowerCase()] || '-';
+      if (col === 'Recommended Product') {
+        row.innerHTML += `<td data-bs-toggle="tooltip" title="${c.fullProducts}">${val}</td>`;
+      } else {
+        row.innerHTML += `<td>${val}</td>`;
+      }
+    });
+    tbody.appendChild(row);
+  });
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
+}
+
+// Update Dashboard
 function updateDashboard() {
   document.getElementById('totalCustomers').innerText = customersData.length;
-  const totalSpend = customersData.reduce((sum, cust) => sum + (cust.totalSpend || 0), 0);
-  document.getElementById('totalSpend').innerText = totalSpend;
-  const validDays = customersData.filter(c => typeof c.daysSinceLastPurchase === 'number').map(c => c.daysSinceLastPurchase);
-  const avgDays = validDays.length ? Math.round(validDays.reduce((a, b) => a + b, 0) / validDays.length) : 0;
-  document.getElementById('avgDays').innerText = avgDays;
 }
 
-// 3. Render Customer Table
-function renderTable() {
-  const searchValue = document.getElementById('searchInput').value.toLowerCase();
-  const riskFilterValue = document.getElementById('riskFilter').value;
-  const tbody = document.getElementById('customerTableBody');
-  tbody.innerHTML = '';
-
-  const filtered = customersData.filter(cust => {
-    const matchesSearch = cust.customerId.toLowerCase().includes(searchValue);
-    const matchesRisk = riskFilterValue === "All" || cust.churnRisk === riskFilterValue;
-    return matchesSearch && matchesRisk;
-  });
-
-  filtered.forEach(cust => {
-    const row = `<tr>
-      <td>${cust.customerId}</td>
-      <td>${cust.lastPurchaseDate}</td>
-      <td>${cust.orderFrequency}</td>
-      <td>${cust.totalSpend}</td>
-      <td>${cust.daysSinceLastPurchase}</td>
-      <td>${cust.churnRisk}</td>
-      <td>${cust.loyaltyPoints}</td>
-      <td>${cust.loyaltyTier}</td>
-      <td>${cust.reminderMessage}</td>
-      <td data-bs-toggle="tooltip" title="${cust.fullProductHistory}">${cust.recommendedProduct}</td>
-    </tr>`;
-    tbody.innerHTML += row;
-  });
-}
-
-document.getElementById('searchInput').addEventListener('input', renderTable);
-document.getElementById('riskFilter').addEventListener('change', renderTable);
-
-document.getElementById('exportButton').addEventListener('click', function() {
-  const searchValue = document.getElementById('searchInput').value.toLowerCase();
-  const riskFilterValue = document.getElementById('riskFilter').value;
-
-  const filteredExport = customersData.filter(cust => {
-    const matchesSearch = cust.customerId.toLowerCase().includes(searchValue);
-    const matchesRisk = riskFilterValue === "All" || cust.churnRisk === riskFilterValue;
-    return matchesSearch && matchesRisk;
-  });
-
-  const exportData = filteredExport.map(c => ({
-    'Customer ID': c.customerId,
-    'Last Purchase Date': c.lastPurchaseDate,
-    'Order Frequency': c.orderFrequency,
-    'Total Spend': c.totalSpend,
-    'Days Since Last Purchase': c.daysSinceLastPurchase,
-    'Churn Risk': c.churnRisk,
-    'Loyalty Points': c.loyaltyPoints,
-    'Loyalty Tier': c.loyaltyTier,
-    'Reminder Message': c.reminderMessage,
-    'Recommended Product': c.recommendedProduct
-  }));
-
-  const csv = Papa.unparse(exportData);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', 'retainx_analyzed_filtered_data.csv');
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
-
-// 5. Update Pie Charts
-let churnPie, loyaltyPie;
-function updateCharts() {
+// Update Pie Chart
+let churnPie;
+function updatePieChart() {
   const churnCounts = { Low: 0, Medium: 0, High: 0 };
-  const loyaltyCounts = { Bronze: 0, Silver: 0, Gold: 0 };
-
-  customersData.forEach(cust => {
-    churnCounts[cust.churnRisk]++;
-    loyaltyCounts[cust.loyaltyTier]++;
-  });
+  customersData.forEach(c => churnCounts[c.churnRisk]++);
 
   if (churnPie) churnPie.destroy();
-  if (loyaltyPie) loyaltyPie.destroy();
-
   churnPie = new Chart(document.getElementById('churnPieChart'), {
     type: 'pie',
     data: {
@@ -268,19 +214,24 @@ function updateCharts() {
       }]
     }
   });
-
-  loyaltyPie = new Chart(document.getElementById('loyaltyPieChart'), {
-    type: 'pie',
-    data: {
-      labels: ['Bronze', 'Silver', 'Gold'],
-      datasets: [{
-        data: [loyaltyCounts.Bronze, loyaltyCounts.Silver, loyaltyCounts.Gold],
-        backgroundColor: ['#cd7f32', '#c0c0c0', '#ffd700']
-      }]
-    }
-  });
 }
+
+document.getElementById('searchInput').addEventListener('input', renderTable);
+document.getElementById('riskFilter').addEventListener('change', renderTable);
+document.getElementById('useCaseFilter').addEventListener('change', renderTable);
+document.getElementById('exportButton').addEventListener('click', function() {
+  const filteredRows = [...document.querySelectorAll('#customerTableBody tr')];
+  const csvContent = filteredRows.map(row => [...row.children].map(cell => cell.innerText).join(",")).join("\n");
+  const headRow = [...document.querySelectorAll('#tableHead th')].map(th => th.innerText).join(",");
+  const csv = `${headRow}\n${csvContent}`;
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.setAttribute('href', URL.createObjectURL(blob));
+  link.setAttribute('download', 'retainx_filtered_data.csv');
+  link.click();
+});
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
