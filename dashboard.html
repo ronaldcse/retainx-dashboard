@@ -71,6 +71,7 @@
           <th>Churn Risk</th>
           <th>Loyalty Points</th>
           <th>Loyalty Tier</th>
+          <th>Reminder Message</th>
         </tr>
       </thead>
       <tbody id="customerTableBody"></tbody>
@@ -138,6 +139,12 @@ csvInput.addEventListener('change', function(e) {
         if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
         else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
 
+        // Generate Engagement Reminder Message
+        let reminderMessage = '';
+        if (daysSinceOrder <= 30) reminderMessage = 'No Reminder Needed';
+        else if (daysSinceOrder <= 60) reminderMessage = 'Mild Reminder: Encourage reorder!';
+        else reminderMessage = 'Urgent Reminder: Please reorder!';
+
         return {
           customerId: cust['Customer ID'] || '',
           lastOrderDate: cust['Last Order Date'] || '',
@@ -146,7 +153,8 @@ csvInput.addEventListener('change', function(e) {
           daysSinceOrder: daysSinceOrder,
           churnRisk: churnRisk,
           loyaltyPoints: loyaltyPoints,
-          loyaltyTier: loyaltyTier
+          loyaltyTier: loyaltyTier,
+          reminderMessage: reminderMessage
         };
       });
       updateDashboard();
@@ -193,6 +201,7 @@ function renderTable() {
       <td>${cust.churnRisk}</td>
       <td>${cust.loyaltyPoints}</td>
       <td>${cust.loyaltyTier}</td>
+      <td>${cust.reminderMessage}</td>
     </tr>`;
     tbody.innerHTML += row;
   });
