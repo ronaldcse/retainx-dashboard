@@ -163,7 +163,16 @@ document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
 
 document.getElementById('exportButton').addEventListener('click', function() {
-  const exportData = customersData.map(c => ({
+  const searchValue = document.getElementById('searchInput').value.toLowerCase();
+  const riskFilterValue = document.getElementById('riskFilter').value;
+
+  const filteredExport = customersData.filter(cust => {
+    const matchesSearch = cust.customerId.toLowerCase().includes(searchValue);
+    const matchesRisk = riskFilterValue === "All" || cust.churnRisk === riskFilterValue;
+    return matchesSearch && matchesRisk;
+  });
+
+  const exportData = filteredExport.map(c => ({
     'Customer ID': c.customerId,
     'Last Purchase Date': c.lastPurchaseDate,
     'Order Frequency': c.orderFrequency,
@@ -181,7 +190,7 @@ document.getElementById('exportButton').addEventListener('click', function() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', 'retainx_analyzed_data.csv');
+  link.setAttribute('download', 'retainx_analyzed_filtered_data.csv');
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
