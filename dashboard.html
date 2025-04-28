@@ -148,7 +148,13 @@ function renderTable() {
   thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
   tbody.innerHTML = '';
 
+  const riskFilterValue = document.getElementById('riskFilter').value;
+  const searchValue = document.getElementById('searchInput').value.toLowerCase();
+
   customersData.forEach(c => {
+    if (riskFilterValue !== 'All' && c.churnRisk !== riskFilterValue) return;
+    if (searchValue && !c.customerId.toLowerCase().includes(searchValue)) return;
+
     const row = document.createElement('tr');
     columns.forEach(col => {
       let value = '-';
