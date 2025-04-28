@@ -106,9 +106,11 @@ csvInput.addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
       customersData = results.data.map(cust => {
-        const purchasedDates = cust['Purchased Dates'] ? cust['Purchased Dates'].split(',').map(d => d.trim()) : [];
-        const purchasedProducts = cust['Purchased Products'] ? cust['Purchased Products'].split(',').map(p => p.trim()) : [];
-        const totalSpend = parseFloat(cust['Total Spend']) || 0;
+        const purchasedDatesRaw = cust['Purchased Dates'] || cust['Purchased dates'] || '';
+        const purchasedProductsRaw = cust['Purchased Products'] || cust['Purchased products'] || '';
+        const purchasedDates = purchasedDatesRaw ? purchasedDatesRaw.split(',').map(d => d.trim()) : [];
+        const purchasedProducts = purchasedProductsRaw ? purchasedProductsRaw.split(',').map(p => p.trim()) : [];
+        const totalSpend = parseFloat(cust['Total Spend'] || cust['Total spend']) || 0;
 
         const lastPurchaseDate = purchasedDates.length > 0 ? purchasedDates[purchasedDates.length - 1] : '-';
         const orderFrequency = purchasedDates.length;
@@ -118,7 +120,7 @@ csvInput.addEventListener('change', function(e) {
         const lastDate = lastPurchaseDate !== '-' ? new Date(lastPurchaseDate) : null;
         const daysSincePurchase = lastDate ? Math.floor((today - lastDate) / (1000 * 3600 * 24)) : '-';
 
-        const rScore = daysSincePurchase <= 30 ? 5 : daysSincePurchase <= 60 ? 4 : daysSincePurchase <= 90 ? 3 : daysSincePurchase <= 120 ? 2 : 1;
+        const rScore = typeof daysSincePurchase === 'number' && daysSincePurchase >= 0 ? (daysSincePurchase <= 30 ? 5 : daysSincePurchase <= 60 ? 4 : daysSincePurchase <= 90 ? 3 : daysSincePurchase <= 120 ? 2 : 1) : 1;
         const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
         const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
 
@@ -128,10 +130,10 @@ csvInput.addEventListener('change', function(e) {
         if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
         else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
 
-        const reminderMessage = daysSincePurchase <= 30 ? 'No Reminder' : daysSincePurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
+        const reminderMessage = typeof daysSincePurchase === 'number' && daysSincePurchase >= 0 ? (daysSincePurchase <= 30 ? 'No Reminder' : daysSincePurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder') : 'Urgent Reminder';
 
         return {
-          customerId: cust['Customer ID'],
+          customerId: cust['Customer ID'] || cust['customer id'] || '-',
           lastPurchaseDate,
           totalSpend,
           orderFrequency,
