@@ -144,7 +144,14 @@ function renderTable() {
   const tbody = document.getElementById('customerTableBody');
   const thead = document.getElementById('tableHead');
 
-  const columns = ['Customer ID','Purchased Date','Total Spend','Order Frequency','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
+  const useCaseFilter = document.getElementById('useCaseFilter') ? document.getElementById('useCaseFilter').value : 'All';
+
+  let columns = ['Customer ID','Purchased Date','Total Spend','Order Frequency','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
+  if (useCaseFilter === 'Churn') columns = ['Customer ID','Purchased Date','Order Frequency','Churn Risk'];
+  else if (useCaseFilter === 'Loyalty') columns = ['Customer ID','Loyalty Points','Loyalty Tier'];
+  else if (useCaseFilter === 'Reminder') columns = ['Customer ID','Reminder Message'];
+  else if (useCaseFilter === 'Recommendation') columns = ['Customer ID','Recommended Product'];
+
   thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
   tbody.innerHTML = '';
 
@@ -191,6 +198,7 @@ function updatePieChart() {
 
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('riskFilter').addEventListener('change', renderTable);
+document.getElementById('useCaseFilter')?.addEventListener('change', renderTable);
 document.getElementById('exportButton').addEventListener('click', function() {
   const rows = [...document.querySelectorAll('#customerTableBody tr')];
   const csvContent = rows.map(r => [...r.children].map(c => c.innerText.replace(/\n/g, ' ')).join(",")).join("\n");
