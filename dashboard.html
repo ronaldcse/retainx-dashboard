@@ -41,7 +41,6 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
     </div>
     <div class="col-md-2">
       <input type="file" id="csvFileInput" class="form-control" accept=".csv">
-      <div id="fileName" class="file-name"></div>
     </div>
     <div class="col-md-2">
       <input type="text" id="searchInput" class="form-control" placeholder="Search Customer ID">
@@ -54,6 +53,17 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
         <option value="Low">Low</option>
       </select>
     </div>
+	<div class="col-md-2">
+  <label>Use Case:</label>
+  <select id="useCaseFilter" class="form-control">
+    <option value="All">All Use Cases</option>
+    <option value="Churn">Churn Prediction</option>
+    <option value="Loyalty">Loyalty Program</option>
+    <option value="Reminder">Auto Reminder</option>
+    <option value="Recommendation">Product Recommendation</option>
+  </select>
+</div>
+
     <div class="col-md-2">
       <button class="btn btn-success" id="exportButton">Export Data</button>
     </div>
