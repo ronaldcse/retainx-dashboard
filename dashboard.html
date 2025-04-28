@@ -24,7 +24,6 @@ html, body { height: 100%; margin: 0; padding: 0; font-family: 'Poppins', sans-s
 .file-name { margin-top: 8px; font-size: 0.9rem; color: #555; }
 input[type=file]::-webkit-file-upload-button { visibility: hidden; }
 input[type=file]::before { content: 'Choose CSV File'; display: inline-block; background: #1d3557; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
-[data-bs-toggle="tooltip"] { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -171,8 +170,18 @@ function renderTable() {
     if (search && !c.customerId.toLowerCase().includes(search)) return;
     const row = document.createElement('tr');
     columns.forEach(col => {
-      let value = c[col.replaceAll(' ', '').replace('Date', 'Date').replace('Purchase', 'Purchase').toLowerCase()] || '-';
-      row.innerHTML += `<td>${value}</td>`;
+      let value = '-';
+      if (col === 'Customer ID') value = c.customerId;
+      else if (col === 'Last Purchase Date') value = c.lastPurchaseDate;
+      else if (col === 'Order Frequency') value = c.orderFrequency;
+      else if (col === 'Total Spend') value = c.totalSpend;
+      else if (col === 'Days Since Purchase') value = c.daysSincePurchase;
+      else if (col === 'Churn Risk') value = c.churnRisk;
+      else if (col === 'Loyalty Points') value = c.loyaltyPoints;
+      else if (col === 'Loyalty Tier') value = c.loyaltyTier;
+      else if (col === 'Reminder Message') value = c.reminderMessage;
+      else if (col === 'Recommended Product') value = c.recommendedProduct;
+      row.innerHTML += `<td>${value !== undefined ? value : '-'}</td>`;
     });
     tbody.appendChild(row);
   });
