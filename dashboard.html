@@ -1,4 +1,4 @@
-<!-- RetainX Dashboard - Fully Final Corrected Version -->
+<!-- RetainX Dashboard - Final Version (Client CSV Format) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +37,6 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 <div class="left-panel">
   <div class="row g-2 align-items-end">
     <div class="col-md-3">
-      <a href="sample_customer_retention.csv" download class="text-primary">Sample CSV File (Download)</a>
       <input type="file" id="csvFileInput" class="form-control mt-1" accept=".csv">
       <div id="fileName" class="file-name"></div>
     </div>
@@ -107,30 +106,13 @@ csvInput.addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
       customersData = results.data.map(cust => {
-        const purchaseDates = cust['Purchased Dates'] ? cust['Purchased Dates'].split(',') : [];
-        const purchaseProducts = cust['Purchased Products'] ? cust['Purchased Products'].split(',') : [];
-
-        const lastPurchaseDate = purchaseDates.length > 0 ? purchaseDates[purchaseDates.length - 1].trim() : '-';
-        const orderFrequency = purchaseDates.length;
-        const recommendedProduct = purchaseProducts.length > 0 ? purchaseProducts[purchaseProducts.length - 1].trim() : '-';
-        const allPreviousProducts = purchaseProducts.slice(0, purchaseProducts.length - 1).join(', ');
-
-        const todayDate = new Date();
-        const lastDate = lastPurchaseDate !== '-' ? new Date(lastPurchaseDate) : null;
-        const daysSincePurchase = lastDate ? Math.floor((todayDate - lastDate) / (1000 * 3600 * 24)) : '-';
-
+        const lastPurchaseDate = cust['Last Purchase Date'] || '-';
+        const orderFrequency = parseInt(cust['Order Frequency']) || 0;
         const spend = parseFloat(cust['Total Spend']) || 0;
-        const rScore = daysSincePurchase <= 30 ? 5 : daysSincePurchase <= 60 ? 4 : daysSincePurchase <= 90 ? 3 : daysSincePurchase <= 120 ? 2 : 1;
-        const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
-        const mScore = spend >= 10000 ? 5 : spend >= 5000 ? 4 : spend >= 2000 ? 3 : spend >= 1000 ? 2 : 1;
+        const recommendedProduct = cust['Recommended Product'] || '-';
 
-        const churnRisk = (rScore + fScore + mScore) >= 11 ? 'Low' : (rScore + fScore + mScore) >= 7 ? 'Medium' : 'High';
-        const loyaltyPoints = Math.floor(spend / 100);
-        let loyaltyTier = 'Bronze';
-        if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
-        else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
-
-        const reminderMessage = daysSincePurchase <= 30 ? 'No Reminder' : daysSincePurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
+        const lastDate = lastPurchaseDate !== '-' ? new Date(lastPurchaseDate) : null;
+        const daysSincePurchase = lastDate ? Math.floor((today - lastDate) / (1000 * 3600 * 24)) : '-';
 
         return {
           customerId: cust['Customer ID'],
@@ -138,12 +120,11 @@ csvInput.addEventListener('change', function(e) {
           orderFrequency,
           totalSpend: spend,
           daysSincePurchase,
-          churnRisk,
-          loyaltyPoints,
-          loyaltyTier,
-          reminderMessage,
-          recommendedProduct,
-          allPreviousProducts
+          churnRisk: cust['Churn Risk'] || '-',
+          loyaltyPoints: cust['Loyalty Points'] || '-',
+          loyaltyTier: cust['Loyalty Tier'] || '-',
+          reminderMessage: cust['Reminder Message'] || '-',
+          recommendedProduct
         }
       });
       renderTable();
@@ -176,17 +157,10 @@ function renderTable() {
     if (search && !c.customerId.toLowerCase().includes(search)) return;
     const row = document.createElement('tr');
     columns.forEach(col => {
-      let value = '-';
-      if (col === 'Customer ID') value = c.customerId;
-      else if (col === 'Last Purchase Date') value = c.lastPurchaseDate;
-      else if (col === 'Order Frequency') value = c.orderFrequency;
-      else if (col === 'Total Spend') value = c.totalSpend;
-      else if (col === 'Days Since Purchase') value = c.daysSincePurchase;
-      else if (col === 'Churn Risk') value = c.churnRisk;
-      else if (col === 'Loyalty Points') value = c.loyaltyPoints;
-      else if (col === 'Loyalty Tier') value = c.loyaltyTier;
-      else if (col === 'Reminder Message') value = c.reminderMessage;
-      else if (col === 'Recommended Product') value = `<span data-bs-toggle="tooltip" title="Previous: ${c.allPreviousProducts || 'None'}">${c.recommendedProduct}</span>`;
+      let value = c[col.replace(/ /g, '').toLowerCase()] || '-';
+      if (col === 'Recommended Product') {
+        value = `<span data-bs-toggle="tooltip" title="${c.recommendedProduct}">${c.recommendedProduct}</span>`;
+      }
       row.innerHTML += `<td>${value}</td>`;
     });
     tbody.appendChild(row);
