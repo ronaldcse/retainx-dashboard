@@ -1,4 +1,4 @@
-<!-- RetainX Dashboard - Fully Fixed Version -->
+<!-- RetainX Dashboard - Fully Final Corrected Version -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -95,7 +95,6 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 <script>
 let customersData = [];
 
-// Upload and Parse CSV
 const csvInput = document.getElementById('csvFileInput');
 csvInput.addEventListener('change', function(e) {
   const file = e.target.files[0];
@@ -111,15 +110,16 @@ csvInput.addEventListener('change', function(e) {
         const purchaseDates = cust['Purchased Dates'] ? cust['Purchased Dates'].split(',') : [];
         const purchaseProducts = cust['Purchased Products'] ? cust['Purchased Products'].split(',') : [];
 
-        const lastPurchaseDate = purchaseDates.length > 0 ? purchaseDates[purchaseDates.length - 1] : '-';
+        const lastPurchaseDate = purchaseDates.length > 0 ? purchaseDates[purchaseDates.length - 1].trim() : '-';
         const orderFrequency = purchaseDates.length;
-        const recommendedProduct = purchaseProducts.length > 0 ? purchaseProducts[purchaseProducts.length - 1] : '-';
+        const recommendedProduct = purchaseProducts.length > 0 ? purchaseProducts[purchaseProducts.length - 1].trim() : '-';
+        const allPreviousProducts = purchaseProducts.slice(0, purchaseProducts.length - 1).join(', ');
 
-        const spend = parseFloat(cust['Total Spend']) || 0;
         const todayDate = new Date();
         const lastDate = lastPurchaseDate !== '-' ? new Date(lastPurchaseDate) : null;
         const daysSincePurchase = lastDate ? Math.floor((todayDate - lastDate) / (1000 * 3600 * 24)) : '-';
 
+        const spend = parseFloat(cust['Total Spend']) || 0;
         const rScore = daysSincePurchase <= 30 ? 5 : daysSincePurchase <= 60 ? 4 : daysSincePurchase <= 90 ? 3 : daysSincePurchase <= 120 ? 2 : 1;
         const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
         const mScore = spend >= 10000 ? 5 : spend >= 5000 ? 4 : spend >= 2000 ? 3 : spend >= 1000 ? 2 : 1;
@@ -142,7 +142,8 @@ csvInput.addEventListener('change', function(e) {
           loyaltyPoints,
           loyaltyTier,
           reminderMessage,
-          recommendedProduct
+          recommendedProduct,
+          allPreviousProducts
         }
       });
       renderTable();
@@ -152,7 +153,6 @@ csvInput.addEventListener('change', function(e) {
   });
 });
 
-// Render Table
 function renderTable() {
   const tbody = document.getElementById('customerTableBody');
   const thead = document.getElementById('tableHead');
@@ -186,7 +186,7 @@ function renderTable() {
       else if (col === 'Loyalty Points') value = c.loyaltyPoints;
       else if (col === 'Loyalty Tier') value = c.loyaltyTier;
       else if (col === 'Reminder Message') value = c.reminderMessage;
-      else if (col === 'Recommended Product') value = `<span data-bs-toggle="tooltip" title="Recommended">${c.recommendedProduct}</span>`;
+      else if (col === 'Recommended Product') value = `<span data-bs-toggle="tooltip" title="Previous: ${c.allPreviousProducts || 'None'}">${c.recommendedProduct}</span>`;
       row.innerHTML += `<td>${value}</td>`;
     });
     tbody.appendChild(row);
@@ -214,7 +214,7 @@ document.getElementById('riskFilter').addEventListener('change', renderTable);
 document.getElementById('useCaseFilter').addEventListener('change', renderTable);
 document.getElementById('exportButton').addEventListener('click', function() {
   const rows = [...document.querySelectorAll('#customerTableBody tr')];
-  const csvContent = rows.map(r => [...r.children].map(c => c.innerText).join(",")).join("\n");
+  const csvContent = rows.map(r => [...r.children].map(c => c.innerText.replace(/\n/g, ' ')).join(",")).join("\n");
   const headRow = [...document.querySelectorAll('#tableHead th')].map(th => th.innerText).join(",");
   const csv = `${headRow}\n${csvContent}`;
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
