@@ -1,4 +1,4 @@
-<!-- RetainX Dashboard - Final Version (Client CSV Format) -->
+<!-- RetainX Dashboard - New Final Version Based on Customer ID, Purchased Dates, Purchased Products, Total Spend -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,33 +40,6 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
       <input type="file" id="csvFileInput" class="form-control mt-1" accept=".csv">
       <div id="fileName" class="file-name"></div>
     </div>
-    <div class="col-md-2">
-      <label>Search Customer ID:</label>
-      <input type="text" id="searchInput" class="form-control" placeholder="Search...">
-    </div>
-    <div class="col-md-2">
-      <label>Filter by Churn Risk:</label>
-      <select id="riskFilter" class="form-control">
-        <option value="All">All</option>
-        <option value="High">High</option>
-        <option value="Medium">Medium</option>
-        <option value="Low">Low</option>
-      </select>
-    </div>
-    <div class="col-md-3">
-      <label>All Use Cases:</label>
-      <select id="useCaseFilter" class="form-control">
-        <option value="All">All Use Cases</option>
-        <option value="Churn">Churn Risk</option>
-        <option value="Recommended">Recommended Product</option>
-        <option value="Loyalty">Loyalty Points & Tier</option>
-        <option value="Reminder">Reminder Message</option>
-        <option value="Automation">Planning Automation</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <button class="btn btn-success w-100" id="exportButton">Export Data</button>
-    </div>
   </div>
 
   <div class="table-responsive">
@@ -106,26 +79,42 @@ csvInput.addEventListener('change', function(e) {
     complete: function(results) {
       const today = new Date();
       customersData = results.data.map(cust => {
-        const lastPurchaseDate = cust['Last Purchase Date'] || '-';
-        const orderFrequency = parseInt(cust['Order Frequency']) || 0;
-        const spend = parseFloat(cust['Total Spend']) || 0;
-        const recommendedProduct = cust['Recommended Product'] || '-';
+        const purchasedDates = cust['Purchased Dates'] ? cust['Purchased Dates'].split(',').map(d => d.trim()) : [];
+        const purchasedProducts = cust['Purchased Products'] ? cust['Purchased Products'].split(',').map(p => p.trim()) : [];
+        const totalSpend = parseFloat(cust['Total Spend']) || 0;
+
+        const lastPurchaseDate = purchasedDates.length > 0 ? purchasedDates[purchasedDates.length - 1] : '-';
+        const orderFrequency = purchasedDates.length;
+        const recommendedProduct = purchasedProducts.length > 0 ? purchasedProducts[purchasedProducts.length - 1] : '-';
+        const tooltipProducts = purchasedProducts.slice(0, -1).join(', ');
 
         const lastDate = lastPurchaseDate !== '-' ? new Date(lastPurchaseDate) : null;
         const daysSincePurchase = lastDate ? Math.floor((today - lastDate) / (1000 * 3600 * 24)) : '-';
 
+        const rScore = daysSincePurchase <= 30 ? 5 : daysSincePurchase <= 60 ? 4 : daysSincePurchase <= 90 ? 3 : daysSincePurchase <= 120 ? 2 : 1;
+        const fScore = orderFrequency >= 10 ? 5 : orderFrequency >= 7 ? 4 : orderFrequency >= 4 ? 3 : orderFrequency >= 2 ? 2 : 1;
+        const mScore = totalSpend >= 10000 ? 5 : totalSpend >= 5000 ? 4 : totalSpend >= 2000 ? 3 : totalSpend >= 1000 ? 2 : 1;
+
+        const churnRisk = (rScore + fScore + mScore) >= 11 ? 'Low' : (rScore + fScore + mScore) >= 7 ? 'Medium' : 'High';
+        const loyaltyPoints = Math.floor(totalSpend / 100);
+        let loyaltyTier = 'Bronze';
+        if (loyaltyPoints >= 300) loyaltyTier = 'Gold';
+        else if (loyaltyPoints >= 100) loyaltyTier = 'Silver';
+
+        const reminderMessage = daysSincePurchase <= 30 ? 'No Reminder' : daysSincePurchase <= 60 ? 'Mild Reminder' : 'Urgent Reminder';
+
         return {
           customerId: cust['Customer ID'],
           lastPurchaseDate,
+          totalSpend,
           orderFrequency,
-          totalSpend: spend,
-          daysSincePurchase,
-          churnRisk: cust['Churn Risk'] || '-',
-          loyaltyPoints: cust['Loyalty Points'] || '-',
-          loyaltyTier: cust['Loyalty Tier'] || '-',
-          reminderMessage: cust['Reminder Message'] || '-',
-          recommendedProduct
-        }
+          churnRisk,
+          loyaltyPoints,
+          loyaltyTier,
+          reminderMessage,
+          recommendedProduct,
+          tooltipProducts
+        };
       });
       renderTable();
       updateDashboard();
@@ -137,30 +126,24 @@ csvInput.addEventListener('change', function(e) {
 function renderTable() {
   const tbody = document.getElementById('customerTableBody');
   const thead = document.getElementById('tableHead');
-  const risk = document.getElementById('riskFilter').value;
-  const usecase = document.getElementById('useCaseFilter').value;
-  const search = document.getElementById('searchInput').value.toLowerCase();
 
-  let columns = [];
-  if (usecase === 'All') columns = ['Customer ID','Last Purchase Date','Order Frequency','Total Spend','Days Since Purchase','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
-  else if (usecase === 'Churn') columns = ['Customer ID','Last Purchase Date','Days Since Purchase','Churn Risk'];
-  else if (usecase === 'Recommended') columns = ['Customer ID','Recommended Product'];
-  else if (usecase === 'Loyalty') columns = ['Customer ID','Loyalty Points','Loyalty Tier'];
-  else if (usecase === 'Reminder') columns = ['Customer ID','Reminder Message'];
-  else if (usecase === 'Automation') columns = ['Customer ID','Reminder Message','Recommended Product'];
-
+  const columns = ['Customer ID','Purchased Date','Total Spend','Order Frequency','Churn Risk','Loyalty Points','Loyalty Tier','Reminder Message','Recommended Product'];
   thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
   tbody.innerHTML = '';
 
   customersData.forEach(c => {
-    if (risk !== 'All' && c.churnRisk !== risk) return;
-    if (search && !c.customerId.toLowerCase().includes(search)) return;
     const row = document.createElement('tr');
     columns.forEach(col => {
-      let value = c[col.replace(/ /g, '').toLowerCase()] || '-';
-      if (col === 'Recommended Product') {
-        value = `<span data-bs-toggle="tooltip" title="${c.recommendedProduct}">${c.recommendedProduct}</span>`;
-      }
+      let value = '-';
+      if (col === 'Customer ID') value = c.customerId;
+      else if (col === 'Purchased Date') value = c.lastPurchaseDate;
+      else if (col === 'Total Spend') value = c.totalSpend;
+      else if (col === 'Order Frequency') value = c.orderFrequency;
+      else if (col === 'Churn Risk') value = c.churnRisk;
+      else if (col === 'Loyalty Points') value = c.loyaltyPoints;
+      else if (col === 'Loyalty Tier') value = c.loyaltyTier;
+      else if (col === 'Reminder Message') value = c.reminderMessage;
+      else if (col === 'Recommended Product') value = `<span data-bs-toggle="tooltip" title="Previous: ${c.tooltipProducts || 'None'}">${c.recommendedProduct}</span>`;
       row.innerHTML += `<td>${value}</td>`;
     });
     tbody.appendChild(row);
@@ -182,21 +165,6 @@ function updatePieChart() {
     data: { labels: ['Low', 'Medium', 'High'], datasets: [{ data: [churnCounts.Low, churnCounts.Medium, churnCounts.High], backgroundColor: ['#28a745','#ffc107','#dc3545'] }] }
   });
 }
-
-document.getElementById('searchInput').addEventListener('input', renderTable);
-document.getElementById('riskFilter').addEventListener('change', renderTable);
-document.getElementById('useCaseFilter').addEventListener('change', renderTable);
-document.getElementById('exportButton').addEventListener('click', function() {
-  const rows = [...document.querySelectorAll('#customerTableBody tr')];
-  const csvContent = rows.map(r => [...r.children].map(c => c.innerText.replace(/\n/g, ' ')).join(",")).join("\n");
-  const headRow = [...document.querySelectorAll('#tableHead th')].map(th => th.innerText).join(",");
-  const csv = `${headRow}\n${csvContent}`;
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'retainx_filtered.csv';
-  link.click();
-});
 </script>
 
 </body>
