@@ -1,4 +1,4 @@
-<!-- RetainX Dashboard - New Final Version Based on Customer ID, Purchased Dates, Purchased Products, Total Spend -->
+<!-- RetainX Dashboard - Full Corrected Version -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,9 +36,26 @@ input[type=file]::before { content: 'Choose CSV File'; display: inline-block; ba
 <div class="content">
 <div class="left-panel">
   <div class="row g-2 align-items-end">
-    <div class="col-md-3">
-      <input type="file" id="csvFileInput" class="form-control mt-1" accept=".csv">
+    <div class="col-md-2">
+      <a href="#" download class="btn btn-primary">Sample CSV File (Download)</a>
+    </div>
+    <div class="col-md-2">
+      <input type="file" id="csvFileInput" class="form-control" accept=".csv">
       <div id="fileName" class="file-name"></div>
+    </div>
+    <div class="col-md-2">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search Customer ID">
+    </div>
+    <div class="col-md-2">
+      <select id="riskFilter" class="form-control">
+        <option value="All">All Churn Risks</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-success" id="exportButton">Export Data</button>
     </div>
   </div>
 
@@ -165,6 +182,20 @@ function updatePieChart() {
     data: { labels: ['Low', 'Medium', 'High'], datasets: [{ data: [churnCounts.Low, churnCounts.Medium, churnCounts.High], backgroundColor: ['#28a745','#ffc107','#dc3545'] }] }
   });
 }
+
+document.getElementById('searchInput').addEventListener('input', renderTable);
+document.getElementById('riskFilter').addEventListener('change', renderTable);
+document.getElementById('exportButton').addEventListener('click', function() {
+  const rows = [...document.querySelectorAll('#customerTableBody tr')];
+  const csvContent = rows.map(r => [...r.children].map(c => c.innerText.replace(/\n/g, ' ')).join(",")).join("\n");
+  const headRow = [...document.querySelectorAll('#tableHead th')].map(th => th.innerText).join(",");
+  const csv = `${headRow}\n${csvContent}`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'retainx_filtered.csv';
+  link.click();
+});
 </script>
 
 </body>
